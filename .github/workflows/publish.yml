@@ -1,0 +1,88 @@
+name: Release Extension
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./packages/extension/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Package extension
+        run: |
+          cd packages/extension
+          vsce package --no-dependencies
+
+      - name: Check if release already exists
+        id: check
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" &>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Create release and attach VSIX
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            packages/extension/*.vsix \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes "Claude File History ${{ steps.version.outputs.version }}
+
+          Download the \`.vsix\` file below and install:
+          - VS Code: \`Ctrl+Shift+P\` → \"Extensions: Install from VSIX...\"
+          - CLI: \`code --install-extension claude-file-history-${{ steps.version.outputs.version }}.vsix\`
+          - Marketplace: upload at https://marketplace.visualstudio.com/manage"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Update existing release
+        if: steps.check.outputs.exists == 'true'
+        run: gh release upload "${{ steps.version.outputs.tag }}" packages/extension/*.vsix --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Optional: auto-publish to VS Code Marketplace
+      - name: Publish to VS Code Marketplace
+        if: steps.check.outputs.exists == 'false' && vars.ENABLE_VSCE_PUBLISH == 'true'
+        run: |
+          cd packages/extension
+          vsce publish --no-dependencies
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      # Optional: auto-publish to Open VSX
+      - name: Publish to Open VSX Registry
+        if: steps.check.outputs.exists == 'false' && vars.ENABLE_OVSX_PUBLISH == 'true'
+        run: |
+          npm install -g ovsx
+          cd packages/extension
+          ovsx publish *.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}

@@ -1,0 +1,95 @@
+{
+  "name": "claude-file-history",
+  "displayName": "Claude File History",
+  "description": "See which Claude Code sessions touched any file — right-click or use the sidebar to view session history, tools used, and timestamps.",
+  "version": "0.1.0",
+  "publisher": "albinstman",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/albinmini/claude-file-history"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "icon": "resources/icon.png",
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeFileHistory.showSessions",
+        "title": "Show Claude Sessions for This File"
+      },
+      {
+        "command": "claudeFileHistory.runBackfill",
+        "title": "Claude File History: Backfill from Historical Sessions"
+      },
+      {
+        "command": "claudeFileHistory.refresh",
+        "title": "Claude File History: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claudeFileHistory.installHooks",
+        "title": "Claude File History: Reinstall Hooks"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "claudeFileHistory.showSessions",
+          "group": "navigation@100"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "claudeFileHistory.showSessions",
+          "group": "navigation@100"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "claudeFileHistory.refresh",
+          "when": "view == claudeFileHistory.sessionTree",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeFileHistory",
+          "title": "Claude File History",
+          "icon": "$(history)"
+        }
+      ]
+    },
+    "views": {
+      "claudeFileHistory": [
+        {
+          "id": "claudeFileHistory.sessionTree",
+          "name": "Sessions"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node build.js",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "node build.js"
+  },
+  "dependencies": {
+    "@claude-file-history/backfill": "*",
+    "@claude-file-history/shared": "*",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.21.0",
+    "typescript": "^5.5.0"
+  }
+}

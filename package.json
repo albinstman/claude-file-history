@@ -1,0 +1,19 @@
+{
+  "name": "claude-file-history",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "packages/hooks",
+    "packages/backfill",
+    "packages/extension"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:shared": "npm run build -w packages/shared",
+    "build:hooks": "npm run build -w packages/hooks",
+    "build:backfill": "npm run build -w packages/backfill",
+    "build:extension": "npm run build -w packages/extension",
+    "install-hooks": "node scripts/install-hooks.js"
+  }
+}
