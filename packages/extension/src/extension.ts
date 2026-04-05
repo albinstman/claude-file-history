@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import type { Database } from '@claude-file-history/shared';
 import { openDatabase, saveDatabase, normalizePath, DB_PATH, DB_DIR, CLAUDE_SETTINGS_PATH, CLAUDE_PROJECTS_DIR } from '@claude-file-history/shared';
-import { SessionTreeDataProvider } from './providers/session-tree';
+import { SessionTreeDataProvider, SessionTreeItem } from './providers/session-tree';
 import { registerShowSessionsCommand } from './commands/show-sessions';
 import { registerBackfillCommand } from './commands/run-backfill';
 
@@ -46,6 +46,37 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('claudeFileHistory.installHooks', () => {
       installHooks(context);
+    })
+  );
+
+  // Resume session in terminal
+  context.subscriptions.push(
+    vscode.commands.registerCommand('claudeFileHistory.resumeSession', (item: SessionTreeItem) => {
+      const sessionId = item.session.session_id;
+      const cwd = item.session.project_root;
+      const terminal = vscode.window.createTerminal({
+        name: `Claude: ${item.session.summary?.substring(0, 30) || sessionId.substring(0, 8)}`,
+        cwd,
+      });
+      terminal.show();
+      terminal.sendText(`claude --resume ${sessionId}`);
+    })
+  );
+
+  // Copy session ID
+  context.subscriptions.push(
+    vscode.commands.registerCommand('claudeFileHistory.copySessionId', (item: SessionTreeItem) => {
+      vscode.env.clipboard.writeText(item.session.session_id);
+      vscode.window.showInformationMessage(`Session ID copied: ${item.session.session_id.substring(0, 8)}...`);
+    })
+  );
+
+  // Copy resume command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('claudeFileHistory.copyResumeCommand', (item: SessionTreeItem) => {
+      const cmd = `claude --resume ${item.session.session_id}`;
+      vscode.env.clipboard.writeText(cmd);
+      vscode.window.showInformationMessage('Resume command copied to clipboard');
     })
   );
 

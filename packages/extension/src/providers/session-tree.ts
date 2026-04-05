@@ -46,44 +46,82 @@ export class SessionTreeDataProvider implements vscode.TreeDataProvider<SessionT
     }
 
     if (element instanceof SessionTreeItem) {
+      const items: (EventTreeItem | PromptPreviewItem)[] = [];
+
+      // Show user prompts as preview items
+      if (element.session.user_prompts && element.session.user_prompts.length > 0) {
+        for (const prompt of element.session.user_prompts) {
+          items.push(new PromptPreviewItem(prompt));
+        }
+      }
+
+      // Show tool events
       const events = queryEventsForFileSession(this.db, element.filePath, element.session.session_id);
-      return events.map((e) => new EventTreeItem(e));
+      for (const e of events) {
+        items.push(new EventTreeItem(e));
+      }
+
+      return items;
     }
 
     return [];
   }
 }
 
-class SessionTreeItem extends vscode.TreeItem {
+export class SessionTreeItem extends vscode.TreeItem {
   constructor(
     public readonly session: SessionResult,
     public readonly filePath: string
   ) {
+    // Use the summary (first user prompt) as the primary label
+    const summary = session.summary || 'No summary';
+    const truncatedSummary = summary.length > 80 ? summary.substring(0, 77) + '...' : summary;
+
+    super(truncatedSummary, vscode.TreeItemCollapsibleState.Collapsed);
+
     const shortId = session.session_id.substring(0, 8);
-    const date = new Date(session.last_seen).toLocaleDateString();
-    const time = new Date(session.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    super(`${shortId} - ${date} ${time}`, vscode.TreeItemCollapsibleState.Collapsed);
-
+    const date = new Date(session.last_seen);
+    const dateStr = date.toLocaleDateString();
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const tools = session.tool_names.join(', ');
     const badge = session.confidence === 'explicit' ? 'Explicit' : 'Inferred';
 
-    this.description = `${tools} [${badge}]`;
+    this.description = `${shortId} · ${dateStr} ${timeStr}`;
+
+    const promptsPreview = session.user_prompts
+      ? session.user_prompts.map((p, i) => `${i + 1}. ${p}`).join('\n\n')
+      : 'No prompts recorded';
+
     this.tooltip = new vscode.MarkdownString(
-      `**Session:** ${session.session_id}\n\n` +
+      `**${truncatedSummary}**\n\n` +
+      `---\n\n` +
+      `**Session:** \`${session.session_id}\`\n\n` +
+      `**Resume:** \`claude --resume ${session.session_id}\`\n\n` +
       `**Project:** ${session.project_root}\n\n` +
       `**Branch:** ${session.git_branch || 'unknown'}\n\n` +
       `**Model:** ${session.model || 'unknown'}\n\n` +
+      `**Tools:** ${tools} [${badge}]\n\n` +
       `**Events:** ${session.event_count}\n\n` +
-      `**First seen:** ${session.first_seen}\n\n` +
-      `**Last seen:** ${session.last_seen}\n\n` +
-      `**Confidence:** ${badge}`
+      `**Period:** ${session.first_seen} → ${session.last_seen}\n\n` +
+      `---\n\n` +
+      `**Conversation prompts:**\n\n${promptsPreview}`
     );
+
     this.iconPath = session.confidence === 'explicit'
-      ? new vscode.ThemeIcon('pass-filled')
+      ? new vscode.ThemeIcon('comment-discussion')
       : new vscode.ThemeIcon('question');
 
     this.contextValue = 'session';
+  }
+}
+
+class PromptPreviewItem extends vscode.TreeItem {
+  constructor(prompt: string) {
+    const truncated = prompt.length > 100 ? prompt.substring(0, 97) + '...' : prompt;
+    super(truncated, vscode.TreeItemCollapsibleState.None);
+    this.iconPath = new vscode.ThemeIcon('comment');
+    this.tooltip = prompt;
+    this.contextValue = 'promptPreview';
   }
 }
 
@@ -101,6 +139,7 @@ class EventTreeItem extends vscode.TreeItem {
     this.description = badge;
     this.iconPath = getToolIcon(event.tool_name);
     this.tooltip = `Tool: ${event.tool_name}\nTime: ${event.timestamp}\nConfidence: ${badge}`;
+    this.contextValue = 'event';
   }
 }
 

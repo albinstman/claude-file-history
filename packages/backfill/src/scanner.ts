@@ -12,7 +12,7 @@ import {
 } from '@claude-file-history/shared';
 import type { EventRecord, Database } from '@claude-file-history/shared';
 import { decodeProjectDir } from '@claude-file-history/shared';
-import { parseJsonlLine } from './parser';
+import { parseJsonlLine, parseUserPrompt } from './parser';
 
 export interface BackfillProgress {
   totalFiles: number;
@@ -54,18 +54,26 @@ export async function scanAllSessions(onProgress?: ProgressCallback): Promise<Ba
       progress.currentFile = path.basename(jsonlPath);
       onProgress?.(progress);
 
-      const events = await parseSessionFile(jsonlPath);
+      const { events, userPrompts } = await parseSessionFile(jsonlPath);
+      const sessionId = path.basename(jsonlPath, '.jsonl');
 
-      if (events.length > 0) {
-        const projectRoot = events[0].project_root || fallbackProjectRoot;
-        const sessionId = path.basename(jsonlPath, '.jsonl');
+      // Build summary from the first substantive user prompt (skip short greetings)
+      const substantivePrompt = userPrompts.find((p) => p.length > 20) || userPrompts[0];
+      const summary = substantivePrompt ? substantivePrompt.substring(0, 200) : undefined;
+      // Keep up to 10 prompts for preview
+      const promptsPreview = userPrompts.slice(0, 10).map((p) => p.substring(0, 200));
+
+      if (events.length > 0 || userPrompts.length > 0) {
+        const projectRoot = (events.length > 0 ? events[0].project_root : null) || fallbackProjectRoot;
 
         upsertSession(db, {
           session_id: sessionId,
           project_root: projectRoot,
-          started_at: events[0].timestamp,
+          started_at: events.length > 0 ? events[0].timestamp : new Date().toISOString(),
           source: 'backfill',
           transcript_path: jsonlPath,
+          summary,
+          user_prompts: promptsPreview.length > 0 ? promptsPreview : undefined,
         });
 
         for (let i = 0; i < events.length; i += 1000) {
@@ -123,17 +131,24 @@ function discoverJsonlFiles(): JsonlFileInfo[] {
   return files;
 }
 
-async function parseSessionFile(jsonlPath: string): Promise<EventRecord[]> {
+async function parseSessionFile(jsonlPath: string): Promise<{ events: EventRecord[]; userPrompts: string[] }> {
   const events: EventRecord[] = [];
+  const userPrompts: string[] = [];
 
   const stream = fs.createReadStream(jsonlPath, { encoding: 'utf-8' });
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
   for await (const line of rl) {
     if (!line.trim()) continue;
+
+    const prompt = parseUserPrompt(line);
+    if (prompt) {
+      userPrompts.push(prompt);
+    }
+
     const lineEvents = parseJsonlLine(line);
     events.push(...lineEvents);
   }
 
-  return events;
+  return { events, userPrompts };
 }

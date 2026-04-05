@@ -1,13 +1,13 @@
 {
   "name": "claude-file-history",
   "displayName": "Claude File History",
-  "description": "See which Claude Code sessions touched any file — right-click or use the sidebar to view session history, tools used, and timestamps.",
-  "version": "0.2.0",
+  "description": "See which Claude Code sessions touched any file — right-click or use the sidebar to view session history, resume conversations, and track tools used.",
+  "version": "0.3.0",
   "publisher": "albinstman",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/albinmini/claude-file-history"
+    "url": "https://github.com/albinstman/claude-file-history"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -35,6 +35,20 @@
       {
         "command": "claudeFileHistory.installHooks",
         "title": "Claude File History: Reinstall Hooks"
+      },
+      {
+        "command": "claudeFileHistory.resumeSession",
+        "title": "Resume Session",
+        "icon": "$(play)"
+      },
+      {
+        "command": "claudeFileHistory.copySessionId",
+        "title": "Copy Session ID",
+        "icon": "$(clippy)"
+      },
+      {
+        "command": "claudeFileHistory.copyResumeCommand",
+        "title": "Copy Resume Command"
       }
     ],
     "menus": {
@@ -55,6 +69,33 @@
           "command": "claudeFileHistory.refresh",
           "when": "view == claudeFileHistory.sessionTree",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "claudeFileHistory.resumeSession",
+          "when": "viewItem == session",
+          "group": "inline@1"
+        },
+        {
+          "command": "claudeFileHistory.copySessionId",
+          "when": "viewItem == session",
+          "group": "inline@2"
+        },
+        {
+          "command": "claudeFileHistory.resumeSession",
+          "when": "viewItem == session",
+          "group": "session@1"
+        },
+        {
+          "command": "claudeFileHistory.copySessionId",
+          "when": "viewItem == session",
+          "group": "session@2"
+        },
+        {
+          "command": "claudeFileHistory.copyResumeCommand",
+          "when": "viewItem == session",
+          "group": "session@3"
         }
       ]
     },

@@ -3,7 +3,7 @@
 import { scanAllSessions, type BackfillProgress } from './scanner';
 
 export { scanAllSessions, type BackfillProgress } from './scanner';
-export { parseJsonlLine } from './parser';
+export { parseJsonlLine, parseUserPrompt } from './parser';
 
 async function main() {
   console.log('Claude File History - Backfill Scanner');

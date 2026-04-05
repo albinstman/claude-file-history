@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS sessions (
     last_seen_at    TEXT,
     source          TEXT NOT NULL,
     model           TEXT,
-    transcript_path TEXT
+    transcript_path TEXT,
+    summary         TEXT,
+    user_prompts    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS events (
@@ -78,6 +80,9 @@ export async function openDatabase(readonly = false): Promise<Database> {
 
   if (!readonly) {
     db.run(SCHEMA);
+    // Migrate: add columns if upgrading from older schema
+    try { db.run('ALTER TABLE sessions ADD COLUMN summary TEXT'); } catch { /* already exists */ }
+    try { db.run('ALTER TABLE sessions ADD COLUMN user_prompts TEXT'); } catch { /* already exists */ }
   }
 
   return db;
@@ -90,14 +95,17 @@ export function saveDatabase(db: Database): void {
 }
 
 export function upsertSession(db: Database, session: SessionRecord): void {
+  const userPromptsJson = session.user_prompts ? JSON.stringify(session.user_prompts) : null;
   db.run(
-    `INSERT INTO sessions (session_id, project_root, git_branch, started_at, last_seen_at, source, model, transcript_path)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO sessions (session_id, project_root, git_branch, started_at, last_seen_at, source, model, transcript_path, summary, user_prompts)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(session_id) DO UPDATE SET
        last_seen_at = excluded.started_at,
        git_branch = COALESCE(excluded.git_branch, sessions.git_branch),
        model = COALESCE(excluded.model, sessions.model),
-       transcript_path = COALESCE(excluded.transcript_path, sessions.transcript_path)`,
+       transcript_path = COALESCE(excluded.transcript_path, sessions.transcript_path),
+       summary = COALESCE(excluded.summary, sessions.summary),
+       user_prompts = COALESCE(excluded.user_prompts, sessions.user_prompts)`,
     [
       session.session_id,
       session.project_root,
@@ -107,6 +115,8 @@ export function upsertSession(db: Database, session: SessionRecord): void {
       session.source,
       session.model ?? null,
       session.transcript_path ?? null,
+      session.summary ?? null,
+      userPromptsJson,
     ]
   );
 }
@@ -206,7 +216,9 @@ export function querySessionsForFile(db: Database, filePath: string): SessionRes
       s.project_root,
       s.git_branch,
       s.model,
-      s.transcript_path
+      s.transcript_path,
+      s.summary,
+      s.user_prompts
     FROM file_index fi
     JOIN sessions s ON fi.session_id = s.session_id
     WHERE fi.file_path = ?
@@ -227,6 +239,8 @@ export function querySessionsForFile(db: Database, filePath: string): SessionRes
     git_branch: (row[8] as string) ?? undefined,
     model: (row[9] as string) ?? undefined,
     transcript_path: (row[10] as string) ?? undefined,
+    summary: (row[11] as string) ?? undefined,
+    user_prompts: row[12] ? JSON.parse(row[12] as string) : undefined,
   }));
 }
 

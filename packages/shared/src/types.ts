@@ -19,6 +19,8 @@ export interface SessionRecord {
   source: 'hook' | 'backfill';
   model?: string;
   transcript_path?: string;
+  summary?: string;
+  user_prompts?: string[];
 }
 
 export interface SessionResult {
@@ -32,6 +34,8 @@ export interface SessionResult {
   git_branch?: string;
   model?: string;
   transcript_path?: string;
+  summary?: string;
+  user_prompts?: string[];
 }
 
 export interface FileTouch {
