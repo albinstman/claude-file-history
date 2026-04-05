@@ -4,3 +4,4 @@ dist/
 *.d.ts.map
 *.vsix
 .vscode-test/
+.DS_Store
