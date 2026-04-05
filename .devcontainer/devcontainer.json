@@ -1,0 +1,58 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/go
+{
+	"name": "tinystar-devcontainer",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			"GO_VERSION": "1.25.1",
+			"PROTOC_VERSION": "32.1",
+			"PROTOC_GEN_GO_VERSION": "v1.36.9",
+			"PROTOC_GEN_GO_GRPC_VERSION": "v1.5.1",
+			"NODE_MAJOR": "22"
+		}
+	},
+	"remoteUser": "root",
+	"containerUser": "root",
+	"features": {
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+	},
+	"mounts": [
+		"source=tinystar-devcontainer-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+		"source=/tmp/gh-devcontainer-token,target=/root/.gh-token,type=bind",
+		"source=/run/host-services/ssh-auth.sock,target=/ssh-agent,type=bind"
+	],
+	"remoteEnv": {
+		"SSH_AUTH_SOCK": "/ssh-agent"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"dbaeumer.vscode-eslint",
+				"esbenp.prettier-vscode",
+				"bierner.markdown-preview-github-styles",
+				"golang.go",
+				"ms-azuretools.vscode-docker",
+				"zxh404.vscode-proto3",
+				"github.vscode-github-actions",
+				"hashicorp.terraform"
+			],
+			"settings": {
+				"go.useLanguageServer": true,
+				"go.toolsManagement.autoUpdate": true
+			}
+		}
+	},
+	// Prepare host services and inject environment variables
+	// into the dev container so those services can be reached
+	"initializeCommand": ["/usr/bin/env", "bash", "${localWorkspaceFolder}/.devcontainer/prepare-host.sh"],
+	"runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW"
+	],
+	"containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096"
+	},
+	// Authenticate GitHub CLI, install latest npm packages, and generate all necessary files
+	"postCreateCommand": "if [ -s /root/.gh-token ]; then gh auth login --with-token < /root/.gh-token 2>/dev/null && echo 'gh CLI authenticated'; fi && curl -fsSL https://claude.ai/install.sh | bash && npm install -g typescript@latest tsx@latest go-ios@latest"
+}
