@@ -7,7 +7,7 @@ import {
   saveDatabase,
   insertEventsBatch,
   upsertSession,
-  getBackfillState,
+  resetBackfillIfGrown,
   updateBackfillState,
 } from '@claude-file-history/shared';
 import type { EventRecord, Database } from '@claude-file-history/shared';
@@ -38,8 +38,14 @@ export async function scanAllSessions(onProgress?: ProgressCallback): Promise<Ba
     onProgress?.(progress);
 
     for (const { jsonlPath, fallbackProjectRoot } of jsonlFiles) {
-      const state = getBackfillState(db, jsonlPath);
-      if (state?.completed) {
+      // Check if file needs scanning (new file, or file has grown)
+      let fileSize = 0;
+      try {
+        fileSize = fs.statSync(jsonlPath).size;
+      } catch { continue; }
+
+      const needsScan = resetBackfillIfGrown(db, jsonlPath, fileSize);
+      if (!needsScan) {
         progress.processedFiles++;
         onProgress?.(progress);
         continue;
@@ -70,7 +76,7 @@ export async function scanAllSessions(onProgress?: ProgressCallback): Promise<Ba
         progress.totalEvents += events.length;
       }
 
-      updateBackfillState(db, jsonlPath, 0, true);
+      updateBackfillState(db, jsonlPath, fileSize, true);
       progress.processedFiles++;
       onProgress?.(progress);
     }

@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import type { Database } from '@claude-file-history/shared';
-import { openDatabase, saveDatabase, normalizePath, DB_PATH, DB_DIR, CLAUDE_SETTINGS_PATH } from '@claude-file-history/shared';
+import { openDatabase, saveDatabase, normalizePath, DB_PATH, DB_DIR, CLAUDE_SETTINGS_PATH, CLAUDE_PROJECTS_DIR } from '@claude-file-history/shared';
 import { SessionTreeDataProvider } from './providers/session-tree';
 import { registerShowSessionsCommand } from './commands/show-sessions';
 import { registerBackfillCommand } from './commands/run-backfill';
@@ -68,6 +68,9 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(watcher);
   } catch { /* ignore */ }
 
+  // Watch for new session JSONL files and auto-backfill them
+  watchForNewSessions(context);
+
   // Set initial file
   if (vscode.window.activeTextEditor?.document.uri.scheme === 'file') {
     treeProvider.setFilePath(normalizePath(vscode.window.activeTextEditor.document.uri.fsPath));
@@ -75,6 +78,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Auto-install hooks on first activation
   installHooksIfNeeded(context);
+
+  // Auto-backfill: run silently in background on every activation
+  runAutoBackfill();
 }
 
 export function deactivate() {
@@ -91,6 +97,47 @@ async function reloadDb() {
     treeProvider.setDb(db);
     treeProvider.refresh();
   } catch { /* ignore */ }
+}
+
+// --- Auto-backfill ---
+
+async function runAutoBackfill() {
+  try {
+    const { scanAllSessions } = await import('@claude-file-history/backfill');
+    const result = await scanAllSessions();
+
+    if (result.totalEvents > 0) {
+      await reloadDb();
+    }
+  } catch (err) {
+    console.warn('Claude File History: Auto-backfill failed:', err);
+  }
+}
+
+// --- Watch for new session files ---
+
+function watchForNewSessions(context: vscode.ExtensionContext) {
+  if (!fs.existsSync(CLAUDE_PROJECTS_DIR)) return;
+
+  try {
+    // Watch all project directories for new .jsonl files
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(vscode.Uri.file(CLAUDE_PROJECTS_DIR), '**/*.jsonl')
+    );
+
+    // When a session file is modified (new lines appended), re-backfill it
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+    const debouncedBackfill = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => runAutoBackfill(), 5000);
+    };
+
+    watcher.onDidChange(debouncedBackfill);
+    watcher.onDidCreate(debouncedBackfill);
+    context.subscriptions.push(watcher);
+  } catch {
+    // FileSystemWatcher may not support paths outside workspace
+  }
 }
 
 // --- Hook installation ---

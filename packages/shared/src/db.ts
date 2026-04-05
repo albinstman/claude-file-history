@@ -268,3 +268,15 @@ export function updateBackfillState(db: Database, jsonlPath: string, offset: num
     [jsonlPath, offset, completed ? 1 : 0]
   );
 }
+
+export function resetBackfillIfGrown(db: Database, jsonlPath: string, currentSize: number): boolean {
+  const state = getBackfillState(db, jsonlPath);
+  if (!state) return true; // Never scanned — needs backfill
+  if (!state.completed) return true; // Incomplete — needs backfill
+  if (currentSize > state.last_offset) {
+    // File has grown since last scan — reset and rescan
+    updateBackfillState(db, jsonlPath, 0, false);
+    return true;
+  }
+  return false; // Already fully scanned at this size
+}

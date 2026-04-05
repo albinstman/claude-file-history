@@ -2,7 +2,7 @@
   "name": "claude-file-history",
   "displayName": "Claude File History",
   "description": "See which Claude Code sessions touched any file — right-click or use the sidebar to view session history, tools used, and timestamps.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "albinstman",
   "license": "MIT",
   "repository": {
