@@ -104,8 +104,8 @@ export function upsertSession(db: Database, session: SessionRecord): void {
        git_branch = COALESCE(excluded.git_branch, sessions.git_branch),
        model = COALESCE(excluded.model, sessions.model),
        transcript_path = COALESCE(excluded.transcript_path, sessions.transcript_path),
-       summary = COALESCE(excluded.summary, sessions.summary),
-       user_prompts = COALESCE(excluded.user_prompts, sessions.user_prompts)`,
+       summary = CASE WHEN excluded.summary IS NOT NULL THEN excluded.summary ELSE sessions.summary END,
+       user_prompts = CASE WHEN excluded.user_prompts IS NOT NULL THEN excluded.user_prompts ELSE sessions.user_prompts END`,
     [
       session.session_id,
       session.project_root,

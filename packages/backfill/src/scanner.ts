@@ -60,8 +60,8 @@ export async function scanAllSessions(onProgress?: ProgressCallback): Promise<Ba
       // Build summary from the first substantive user prompt (skip short greetings)
       const substantivePrompt = userPrompts.find((p) => p.length > 20) || userPrompts[0];
       const summary = substantivePrompt ? substantivePrompt.substring(0, 200) : undefined;
-      // Keep up to 10 prompts for preview
-      const promptsPreview = userPrompts.slice(0, 10).map((p) => p.substring(0, 200));
+      // Keep up to 50 prompts for preview
+      const promptsPreview = userPrompts.slice(0, 50).map((p) => p.substring(0, 200));
 
       if (events.length > 0 || userPrompts.length > 0) {
         const projectRoot = (events.length > 0 ? events[0].project_root : null) || fallbackProjectRoot;

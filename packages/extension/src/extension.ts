@@ -50,16 +50,38 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Resume session in terminal
+  function resumeSession(item: SessionTreeItem) {
+    const sessionId = item.session.session_id;
+    const cwd = item.session.project_root;
+    const terminal = vscode.window.createTerminal({
+      name: `Claude: ${item.session.summary?.substring(0, 30) || sessionId.substring(0, 8)}`,
+      cwd,
+    });
+    terminal.show();
+    terminal.sendText(`claude --resume ${sessionId}`);
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand('claudeFileHistory.resumeSession', (item: SessionTreeItem) => {
-      const sessionId = item.session.session_id;
-      const cwd = item.session.project_root;
-      const terminal = vscode.window.createTerminal({
-        name: `Claude: ${item.session.summary?.substring(0, 30) || sessionId.substring(0, 8)}`,
-        cwd,
-      });
-      terminal.show();
-      terminal.sendText(`claude --resume ${sessionId}`);
+      resumeSession(item);
+    })
+  );
+
+  // Double-click to resume: detect two clicks on same session within 500ms
+  let lastClickedSession: string | undefined;
+  let lastClickTime = 0;
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('claudeFileHistory.onSessionClick', (item: SessionTreeItem) => {
+      const now = Date.now();
+      if (lastClickedSession === item.session.session_id && now - lastClickTime < 500) {
+        resumeSession(item);
+        lastClickedSession = undefined;
+        lastClickTime = 0;
+      } else {
+        lastClickedSession = item.session.session_id;
+        lastClickTime = now;
+      }
     })
   );
 
