@@ -54,7 +54,7 @@ export async function scanAllSessions(onProgress?: ProgressCallback): Promise<Ba
       progress.currentFile = path.basename(jsonlPath);
       onProgress?.(progress);
 
-      const { events, userPrompts } = await parseSessionFile(jsonlPath);
+      const { events, userPrompts, cwd } = await parseSessionFile(jsonlPath);
       const sessionId = path.basename(jsonlPath, '.jsonl');
 
       // Build summary from the first substantive user prompt (skip short greetings)
@@ -64,7 +64,8 @@ export async function scanAllSessions(onProgress?: ProgressCallback): Promise<Ba
       const promptsPreview = userPrompts.slice(0, 50).map((p) => p.substring(0, 200));
 
       if (events.length > 0 || userPrompts.length > 0) {
-        const projectRoot = (events.length > 0 ? events[0].project_root : null) || fallbackProjectRoot;
+        // Prefer cwd from JSONL records (authoritative), then from events, then decoded dir name (lossy)
+        const projectRoot = cwd || (events.length > 0 ? events[0].project_root : null) || fallbackProjectRoot;
 
         upsertSession(db, {
           session_id: sessionId,
@@ -131,15 +132,26 @@ function discoverJsonlFiles(): JsonlFileInfo[] {
   return files;
 }
 
-async function parseSessionFile(jsonlPath: string): Promise<{ events: EventRecord[]; userPrompts: string[] }> {
+async function parseSessionFile(jsonlPath: string): Promise<{ events: EventRecord[]; userPrompts: string[]; cwd?: string }> {
   const events: EventRecord[] = [];
   const userPrompts: string[] = [];
+  let cwd: string | undefined;
 
   const stream = fs.createReadStream(jsonlPath, { encoding: 'utf-8' });
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
   for await (const line of rl) {
     if (!line.trim()) continue;
+
+    // Extract cwd from the first JSONL line that has it
+    if (!cwd) {
+      try {
+        const record = JSON.parse(line);
+        if (record.cwd && typeof record.cwd === 'string') {
+          cwd = record.cwd;
+        }
+      } catch { /* ignore parse errors */ }
+    }
 
     const prompt = parseUserPrompt(line);
     if (prompt) {
@@ -150,5 +162,5 @@ async function parseSessionFile(jsonlPath: string): Promise<{ events: EventRecor
     events.push(...lineEvents);
   }
 
-  return { events, userPrompts };
+  return { events, userPrompts, cwd };
 }

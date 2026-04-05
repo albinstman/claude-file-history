@@ -53,10 +53,15 @@ export async function activate(context: vscode.ExtensionContext) {
   function resumeSession(item: SessionTreeItem) {
     const sessionId = item.session.session_id;
     const cwd = item.session.project_root;
-    const terminal = vscode.window.createTerminal({
+    const fs = require('fs');
+    const terminalOptions: vscode.TerminalOptions = {
       name: `Claude: ${item.session.summary?.substring(0, 30) || sessionId.substring(0, 8)}`,
-      cwd,
-    });
+    };
+    // Only set cwd if the directory actually exists to avoid launch failures
+    if (fs.existsSync(cwd)) {
+      terminalOptions.cwd = cwd;
+    }
+    const terminal = vscode.window.createTerminal(terminalOptions);
     terminal.show();
     terminal.sendText(`claude --resume ${sessionId}`);
   }
