@@ -60,6 +60,13 @@ All data is stored locally on your machine. Nothing is sent anywhere.
 | Claude File History: Refresh | Reload the sidebar |
 | Claude File History: Reinstall Hooks | Re-register hooks in Claude settings |
 
+## Changelog
+
+### v0.4.1
+
+- Fix: "Resume Session" no longer fails for projects with hyphens in the path (e.g. `/workspaces/claude-file-history`). The backfill scanner now reads the authoritative `cwd` from JSONL records instead of decoding the ambiguous directory name.
+- Fix: Terminal launch gracefully falls back if the stored working directory no longer exists.
+
 ## Requirements
 
 - [Claude Code](https://claude.ai/download) CLI installed
