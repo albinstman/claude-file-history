@@ -4,6 +4,8 @@ Scared of closing your Claude conversations?
 
 This VS Code extension tracks every Claude Code session that touched your files. Find any past conversation, preview what was discussed, and resume it with a double-click.
 
+<video src="demo.mp4" controls width="100%"></video>
+
 ## Install
 
 **VS Code Marketplace**: Search for "Claude File History" in the Extensions panel.
